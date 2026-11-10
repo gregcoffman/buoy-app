@@ -3,6 +3,10 @@
 > What needs your attention rises.
 
 A local-first macOS task manager built around **when tasks surface**, not how they're filed.
+
+**[Download for Mac](https://github.com/gregcoffman/buoy-app/releases/latest/download/Buoy.zip)** (macOS 14+, Apple silicon and Intel) · **[Guide](https://gregcoffman.github.io/buoy-app/)**
+
+Buoy isn't notarized by Apple, so the first time you open it macOS will stop it: go to System Settings ▸ Privacy & Security and click **Open Anyway**. Or build it yourself (below).
 See [docs/PRD.md](docs/PRD.md) for the product requirements.
 
 ## Build & run
