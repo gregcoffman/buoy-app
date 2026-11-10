@@ -107,7 +107,7 @@ An agent can add, complete, snooze, update and delete tasks and projects, and sa
 - It can estimate effort, order your todo list and the Ready column, and hand finished projects in to **Ready for review**; only you move them to Done.
 - Anything an agent adds is marked with a small sparkle. Anything it deletes can be restored for 30 days (Settings ▸ Agent).
 
-See [URL_SCHEME.md](URL_SCHEME.md) for every action and parameter, and Terminal examples to try each one. [docs/USING_AN_AGENT.md](docs/USING_AN_AGENT.md) explains why Buoy has these features (a personal agent built on Hermes was the use case), how to keep an agent safe with them, and a starting skill to give your own agent.
+Buoy has no AI inside: you bring your own agent (Claude Code, Hermes, or a script), running on the same Mac. [skills/buoy/SKILL.md](skills/buoy/SKILL.md) is a ready-made skill that teaches it Buoy, and [docs/USING_AN_AGENT.md](docs/USING_AN_AGENT.md) covers setup, safety, and why Buoy has these features (a personal agent built on Hermes was the use case). [URL_SCHEME.md](URL_SCHEME.md) lists every action and parameter, with Terminal examples to try each one.
 
 ## Data
 
