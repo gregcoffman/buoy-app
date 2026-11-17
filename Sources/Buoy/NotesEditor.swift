@@ -76,9 +76,9 @@ struct NotesEditor: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView view: NotesTextView, context: Context) -> CGSize? {
-        // A missing or unbounded width is SwiftUI probing: answer with the current width.
-        var width = proposal.width ?? 0
-        if !width.isFinite || width <= 0 { width = view.bounds.width > 0 ? view.bounds.width : 300 }
+        // Answer only from the proposal and the text, never from the view's current
+        // size: an answer that changes when the view is resized makes layout loop.
+        let width = proposal.width ?? 300
         return CGSize(width: width, height: view.heightFitting(width: width))
     }
 
@@ -140,27 +140,31 @@ final class NotesTextView: NSTextView {
         invalidateIntrinsicContentSize()
     }
 
-    /// Measures the text at `width` without changing how it wraps on screen.
-    /// SwiftUI asks for sizes at trial widths while laying out (often on every
-    /// keystroke). Leaving the text container at a trial width made the text wrap
-    /// narrower than the box until the view happened to be resized.
-    func heightFitting(width: CGFloat) -> CGFloat {
-        guard let container = textContainer, let layout = layoutManager else { return 17 }
-        let onScreen = container.containerSize
-        container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
-        layout.ensureLayout(for: container)
-        let used = layout.usedRect(for: container).height
-        container.containerSize = bounds.width > 0
-            ? NSSize(width: bounds.width, height: .greatestFiniteMagnitude) : onScreen
-        return max(ceil(used), ceil(bodyFont.boundingRectForFont.height))
-    }
+    // A private copy of the text, used only to measure it.
+    private let measureStorage = NSTextStorage()
+    private let measureContainer = NSTextContainer(size: .zero)
+    private lazy var measureLayout: NSLayoutManager = {
+        let layout = NSLayoutManager()
+        measureStorage.addLayoutManager(layout)
+        layout.addTextContainer(measureContainer)
+        return layout
+    }()
 
-    // Keep the wrap width matched to the view's real width.
-    override func setFrameSize(_ newSize: NSSize) {
-        super.setFrameSize(newSize)
-        if let container = textContainer, newSize.width > 0, container.containerSize.width != newSize.width {
-            container.containerSize = NSSize(width: newSize.width, height: .greatestFiniteMagnitude)
-        }
+    /// How tall the text is when wrapped at `width`. SwiftUI asks this at trial
+    /// widths while laying out, often on every keystroke. The answer comes from a
+    /// separate copy of the text, so asking never touches the text on screen:
+    /// - Wrapping the on-screen text at a trial width left it wrapped too narrow.
+    /// - Switching it to a trial width and back made it re-layout on every
+    ///   question, which asked SwiftUI to lay out again, forever (AppKit then
+    ///   aborts: "more Update Constraints in Window passes than there are views").
+    func heightFitting(width: CGFloat) -> CGFloat {
+        guard let storage = textStorage else { return 17 }
+        if !measureStorage.isEqual(to: storage) { measureStorage.setAttributedString(storage) }
+        measureContainer.lineFragmentPadding = textContainer?.lineFragmentPadding ?? 0
+        measureContainer.size = NSSize(width: width, height: .greatestFiniteMagnitude)
+        measureLayout.ensureLayout(for: measureContainer)
+        let used = measureLayout.usedRect(for: measureContainer).height
+        return max(ceil(used), ceil(bodyFont.boundingRectForFont.height))
     }
 
     func focusAtEnd() {

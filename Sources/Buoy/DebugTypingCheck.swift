@@ -4,6 +4,8 @@ import BuoyCore
 import SwiftUI
 
 /// Development aid: `BUOY_SNAPSHOT_DIR=<dir> BUOY_SNAPSHOT_TYPING=1 BUOY_DATA_DIR=<scratch> swift run Buoy`
+/// (or `BUOY_SNAPSHOT_TYPING=1100x820` for a window size). Check the exit status too: a crash
+/// after the last line of output is still a failure.
 /// opens a Delegated card and types into "Why / context" and "Delivery expectations" with real key
 /// events: long paragraphs, quotes and dashes, line breaks, a link, arrow-key edits in the middle,
 /// bursts with no pause, and an accent composed the way input methods do it. After every key it
@@ -22,7 +24,9 @@ enum DebugTypingCheck {
             }
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
-            window.setContentSize(NSSize(width: 1100, height: 820))
+            // BUOY_SNAPSHOT_TYPING=WxH sets the window size; anything else keeps the default.
+            let size = (ProcessInfo.processInfo.environment["BUOY_SNAPSHOT_TYPING"] ?? "").split(separator: "x").compactMap { Double($0) }
+            if size.count == 2 { window.setContentSize(NSSize(width: size[0], height: size[1])) }
             store.route = .projects
             store.openProject(card.id)
             try? await Task.sleep(for: .seconds(1))
