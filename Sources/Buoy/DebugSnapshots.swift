@@ -12,6 +12,10 @@ enum DebugSnapshots {
         guard let dir = ProcessInfo.processInfo.environment["BUOY_SNAPSHOT_DIR"] else { return }
         let out = URL(fileURLWithPath: dir, isDirectory: true)
         try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        if ProcessInfo.processInfo.environment["BUOY_SNAPSHOT_TYPING"] != nil {
+            DebugTypingCheck.run(store: store, out: out)
+            return
+        }
 
         let first = store.todayItems.first?.task.id
         let steps: [(String, () -> Void)] = [

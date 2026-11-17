@@ -11,6 +11,9 @@ struct NotesEditor: NSViewRepresentable {
     var prominent = false
     /// Bump to put the cursor at the end of the notes.
     var focusRequest = 0
+    /// Keep quotes, dashes and text exactly as typed (no curly quotes or em dashes).
+    /// For text an agent reads.
+    var plainPunctuation = false
     var onEscape: () -> Void = {}
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -38,6 +41,7 @@ struct NotesEditor: NSViewRepresentable {
         ]
         view.placeholder = placeholder
         view.onEscape = onEscape
+        view.plainPunctuation = plainPunctuation
         view.string = text
         view.refreshLinks()
         return view
@@ -47,9 +51,23 @@ struct NotesEditor: NSViewRepresentable {
         context.coordinator.parent = self
         view.onEscape = onEscape
         view.placeholder = placeholder
-        if view.string != text {
+        view.plainPunctuation = plainPunctuation
+        // Only take the binding's value when it really changed from outside. While
+        // you're typing, the view holds the newest text; overwriting it here (for
+        // example mid-composition, or from an update that hasn't caught up) loses
+        // keystrokes and moves the cursor.
+        if view.string != text, text != context.coordinator.lastSent,
+           !(view.window?.firstResponder === view && view.hasMarkedText()) {
+            let selection = view.selectedRanges
             view.string = text
+            context.coordinator.lastSent = text
             view.refreshLinks()
+            let length = (text as NSString).length
+            view.selectedRanges = selection.map {
+                let r = $0.rangeValue
+                let start = min(r.location, length)
+                return NSValue(range: NSRange(location: start, length: min(r.length, length - start)))
+            }
         }
         if context.coordinator.lastFocusRequest != focusRequest {
             context.coordinator.lastFocusRequest = focusRequest
@@ -58,22 +76,28 @@ struct NotesEditor: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView view: NotesTextView, context: Context) -> CGSize? {
-        let width = proposal.width ?? 300
+        // A missing or unbounded width is SwiftUI probing: answer with the current width.
+        var width = proposal.width ?? 0
+        if !width.isFinite || width <= 0 { width = view.bounds.width > 0 ? view.bounds.width : 300 }
         return CGSize(width: width, height: view.heightFitting(width: width))
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: NotesEditor
         var lastFocusRequest: Int
+        /// The text this view last handed to the binding.
+        var lastSent: String
 
         init(_ parent: NotesEditor) {
             self.parent = parent
             lastFocusRequest = parent.focusRequest
+            lastSent = parent.text
         }
 
         func textDidChange(_ notification: Notification) {
             guard let view = notification.object as? NotesTextView else { return }
             view.refreshLinks()
+            lastSent = view.string
             parent.text = view.string
         }
     }
@@ -89,11 +113,22 @@ final class NotesTextView: NSTextView {
 
     var placeholder = ""
     var onEscape: () -> Void = {}
+    var plainPunctuation = false {
+        didSet {
+            guard plainPunctuation != oldValue || plainPunctuation else { return }
+            isAutomaticQuoteSubstitutionEnabled = !plainPunctuation
+            isAutomaticDashSubstitutionEnabled = !plainPunctuation
+            isAutomaticTextReplacementEnabled = !plainPunctuation
+        }
+    }
 
     /// Re-marks every link in the text. Links are display-only attributes;
     /// what's saved is still plain text.
     func refreshLinks() {
-        guard let storage = textStorage else { return }
+        // Never restyle mid-composition (accents, dictation, other input methods):
+        // rewriting attributes then drops the half-typed text. didChangeText runs
+        // again once the composition is committed.
+        guard let storage = textStorage, !hasMarkedText() else { return }
         let full = NSRange(location: 0, length: storage.length)
         storage.beginEditing()
         storage.setAttributes(bodyAttributes, range: full)
@@ -105,14 +140,27 @@ final class NotesTextView: NSTextView {
         invalidateIntrinsicContentSize()
     }
 
+    /// Measures the text at `width` without changing how it wraps on screen.
+    /// SwiftUI asks for sizes at trial widths while laying out (often on every
+    /// keystroke). Leaving the text container at a trial width made the text wrap
+    /// narrower than the box until the view happened to be resized.
     func heightFitting(width: CGFloat) -> CGFloat {
         guard let container = textContainer, let layout = layoutManager else { return 17 }
-        if container.containerSize.width != width {
-            container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
-        }
+        let onScreen = container.containerSize
+        container.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
         layout.ensureLayout(for: container)
         let used = layout.usedRect(for: container).height
+        container.containerSize = bounds.width > 0
+            ? NSSize(width: bounds.width, height: .greatestFiniteMagnitude) : onScreen
         return max(ceil(used), ceil(bodyFont.boundingRectForFont.height))
+    }
+
+    // Keep the wrap width matched to the view's real width.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        if let container = textContainer, newSize.width > 0, container.containerSize.width != newSize.width {
+            container.containerSize = NSSize(width: newSize.width, height: .greatestFiniteMagnitude)
+        }
     }
 
     func focusAtEnd() {

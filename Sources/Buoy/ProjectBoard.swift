@@ -298,12 +298,12 @@ struct ProjectDetail: View {
                         section("Why / context", hint: "Background, links, constraints: anything your agent needs to know.",
                                 onTap: { whyFocus += 1 }) {
                             NotesEditor(text: field(\.notes), placeholder: "Why this matters, and what your agent should know…",
-                                        prominent: true, focusRequest: whyFocus)
+                                        prominent: true, focusRequest: whyFocus, plainPunctuation: true)
                         }
                         section("Delivery expectations", hint: "What done looks like: the format, where it goes, how you'll judge it.",
                                 onTap: { expectationsFocus += 1 }) {
                             NotesEditor(text: field(\.expectations), placeholder: "When it's done, I expect…",
-                                        prominent: true, focusRequest: expectationsFocus)
+                                        prominent: true, focusRequest: expectationsFocus, plainPunctuation: true)
                         }
                         if let live, !live.status.isEmpty || !live.result.isEmpty {
                             agentReport(live)
