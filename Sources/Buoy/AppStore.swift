@@ -618,8 +618,12 @@ final class AppStore {
             c.updatedAt = Date()
             return c
         }
-        let what = kind == .project ? "project" : "task"
-        let label = targets.count == 1 ? "“\(targets[0].title)” is now a \(what)" : "Converted \(targets.count) to \(what)s"
+        let label: String
+        if kind == .project {
+            label = targets.count == 1 ? "Delegated “\(targets[0].title)”" : "Delegated \(targets.count) tasks"
+        } else {
+            label = targets.count == 1 ? "“\(targets[0].title)” is now a task" : "Converted \(targets.count) to tasks"
+        }
         markAdded(converted.map(\.id))
         perform(label, affecting: targets.map(\.id), undoManager: undoManager) { repo in
             try repo.save(converted)

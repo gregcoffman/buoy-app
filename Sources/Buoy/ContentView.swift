@@ -742,7 +742,7 @@ struct TaskActions: View {
             Divider()
             let plain = active.filter { !$0.isProject }, projects = active.filter(\.isProject)
             if !plain.isEmpty {
-                Button(plain.count > 1 ? "Convert \(plain.count) Tasks to Projects" : "Convert to Project") {
+                Button(plain.count > 1 ? "Delegate \(plain.count) Tasks" : "Delegate") {
                     store.convertKind(plain.map(\.id), to: .project, undoManager: undoManager)
                 }
             }

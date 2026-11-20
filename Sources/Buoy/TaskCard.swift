@@ -326,7 +326,7 @@ private struct TaskCardMenus: View {
                     Button("Unsnooze") { store.unsnooze([task.id], undoManager: undoManager) }
                 }
                 if !task.isCompleted {
-                    Button(task.isProject ? "Convert to Task" : "Convert to Project") {
+                    Button(task.isProject ? "Convert to Task" : "Delegate") {
                         store.convertKind([task.id], to: task.isProject ? .task : .project, undoManager: undoManager)
                     }
                     Button("Convert to Note") { store.convertToNotes([task.id], undoManager: undoManager) }
